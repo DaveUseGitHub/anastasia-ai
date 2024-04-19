@@ -1,17 +1,16 @@
 import streamlit as st
 import boto3
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 from langchain_community.chat_models import BedrockChat
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain.chains import RetrievalQA
-from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts.prompt import PromptTemplate
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import HumanMessage, AIMessage
 
-st.set_page_config(page_title='Start Consulting', layout='wide')
+st.set_page_config(page_title='Start Consulting', layout='wide', page_icon="./fav.ico")
 st.title("Chat with Anastasia")
 
 bedrock_runtime = boto3.client(
@@ -42,15 +41,15 @@ def claude_model():
         client=bedrock_runtime,
         model_id="anthropic.claude-3-haiku-20240307-v1:0",
         model_kwargs={
-            "max_tokens": 1024,
-            "temperature": 0.7})
+            "max_tokens": 2048,
+            "temperature": 0.9,
+            "top_k": 250,
+            "top_p": 1})
     return llm
 
 prompt_template = """
-You're an AI expert in psychology and psychiatry named Anastasia. You have a deep knowledge with human psychology, neurology, mental health, and philosophy. 
-You have several task such as giving information, giving guidance and if the user ask about professional data, give the user the correct in a list 
-format based. You are unable to anwer any discussion/question that out of the 2 topics above.
-Always stay in character.
+You're an AI expert in psychology and psychiatry named Anastasia.
+You have several task is to give mental health and personal development advice to users and become their mental support. You will be confused if the user ask about something out of topic. Only give the user about the professional data when only they ask. Be smart and creative. don't throw the same answer in every response. 
 
 <context>
 {context} 
@@ -67,7 +66,7 @@ def get_response_llm(llm, vectorstore_faiss, query):
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore_faiss.as_retriever(
-            search_type="similarity", search_kwargs={"k": 4}
+            search_type="similarity", search_kwargs={"k": 5}
         ),
         return_source_documents=True,
         chain_type_kwargs={"prompt": PROMPT}
@@ -80,15 +79,18 @@ if "memory" not in st.session_state:
 
 # Sidebar info
 with st.sidebar:
+    st.image('./fav.ico', width=100, use_column_width= "never")
     st.write("## Anastasia.ai")
-    st.caption("You can ask something about mental health")
+    st.caption("Personal AI Assistant in Mental Health and Personal Development")
 
-    if st.button("Update database"):
+    st.divider()
+    st.markdown("If you want to ask about our mental health professional's information. Make sure to click 'Sync database'first")
+    if st.button("Sync database"):
         with st.spinner("Processing..."):
             docs = data_ingestion()
             vector_store(docs)
             st.success("Done")
-
+    
 # Conversation
 for message in st.session_state.memory.messages:
     if isinstance(message, HumanMessage):
@@ -112,10 +114,3 @@ if user_input:
         ai_message = AIMessage(content=response)
         st.write(response)
         st.session_state.memory.add_ai_message(ai_message)
-#Here are the changes made:
-#1. Imported `StreamlitChatMessageHistory` from `langchain.memory.chat_message_histories` instead of using the `HumanMessage` and `AIMessage` classes directly.
-#2. Initialized `st.session_state.memory` with `StreamlitChatMessageHistory()` instead of an empty list.
-#3. Used `st.session_state.memory.messages` to iterate over the conversation history.
-#4. Used `st.session_state.memory.add_user_message(user_input)` and `st.session_state.memory.add_ai_message(response)` to add new messages to the conversation history.
-#5. Removed the unnecessary import statements for `HumanMessage` and `AIMessage`.
-#The rest of the code remains the same. These changes should ensure that the conversation history is properly maintained and displayed in the Streamlit application.
