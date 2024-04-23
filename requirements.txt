@@ -1,5 +1,6 @@
 boto3
 langchain
 streamlit
+streamlit-authenticator
 langchain-community
 faiss-cpu
